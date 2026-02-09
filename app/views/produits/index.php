@@ -2,126 +2,126 @@
 if (session_status() === PHP_SESSION_NONE) {
     session_start();
 }
-$title = 'Mes Objets - Takalo';
-ob_start();
+ob_start(); 
 ?>
 
-<div class="hero-section">
-    <div class="container">
-        <div class="row align-items-center">
-            <div class="col-md-8">
-                <h1 class="display-5 fw-bold mb-2">
-                    <i class="bi bi-collection me-2"></i>Mes Objets
-                </h1>
-                <p class="lead mb-0">Gérez vos objets à échanger</p>
+<div class="container py-4">
+    <!-- Header -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h2><i class="bi bi-box-seam"></i> Mes Objets</h2>
+            <p class="text-muted mb-0">Gérez vos objets à échanger</p>
+        </div>
+        <a href="/mes-produits/ajouter" class="btn btn-primary">
+            <i class="bi bi-plus-lg"></i> Ajouter un objet
+        </a>
+    </div>
+
+    <?php if (!empty($success)): ?>
+    <div class="alert alert-success alert-dismissible fade show">
+        <i class="bi bi-check-circle"></i> <?= htmlspecialchars($success) ?>
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+    <?php endif; ?>
+
+    <?php if (empty($produits)): ?>
+    <!-- Empty State -->
+    <div class="card">
+        <div class="card-body text-center py-5">
+            <i class="bi bi-box-seam text-muted" style="font-size: 4rem;"></i>
+            <h4 class="mt-3">Aucun objet pour le moment</h4>
+            <p class="text-muted">Commencez par ajouter votre premier objet à échanger!</p>
+            <a href="/mes-produits/ajouter" class="btn btn-primary">
+                <i class="bi bi-plus-lg"></i> Ajouter mon premier objet
+            </a>
+        </div>
+    </div>
+    <?php else: ?>
+    <!-- Products Grid -->
+    <div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-4">
+        <?php foreach ($produits as $produit): ?>
+        <div class="col">
+            <div class="card h-100">
+                <?php 
+                $photos = explode(',', $produit['photo']);
+                $firstPhoto = trim($photos[0]);
+                ?>
+                <img src="/uploads/<?= htmlspecialchars($firstPhoto) ?>" 
+                     class="card-img-top product-image" 
+                     alt="<?= htmlspecialchars($produit['nom']) ?>"
+                     onerror="this.src='https://via.placeholder.com/300x200?text=Image+non+disponible'">
+                
+                <?php if (count($photos) > 1): ?>
+                <span class="position-absolute top-0 end-0 m-2 badge bg-dark">
+                    <i class="bi bi-images"></i> <?= count($photos) ?>
+                </span>
+                <?php endif; ?>
+
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-start mb-2">
+                        <span class="badge badge-category"><?= htmlspecialchars($produit['categorie_nom'] ?? 'Non catégorisé') ?></span>
+                    </div>
+                    <h5 class="card-title"><?= htmlspecialchars($produit['nom']) ?></h5>
+                    <p class="card-text text-muted small">
+                        <?= htmlspecialchars(substr($produit['description'], 0, 100)) ?>
+                        <?= strlen($produit['description']) > 100 ? '...' : '' ?>
+                    </p>
+                    <p class="price-tag mb-0">
+                        <?= number_format($produit['prix'], 0, ',', ' ') ?> Ar
+                    </p>
+                </div>
+                
+                <div class="card-footer bg-white border-0">
+                    <div class="btn-group w-100">
+                        <a href="/mes-produits/modifier/<?= $produit['id'] ?>" class="btn btn-outline-primary btn-sm">
+                            <i class="bi bi-pencil"></i> Modifier
+                        </a>
+                        <button type="button" class="btn btn-outline-danger btn-sm" 
+                                onclick="confirmDelete(<?= $produit['id'] ?>, '<?= htmlspecialchars(addslashes($produit['nom'])) ?>')">
+                            <i class="bi bi-trash"></i> Supprimer
+                        </button>
+                    </div>
+                </div>
             </div>
-            <div class="col-md-4 text-md-end mt-3 mt-md-0">
-                <a href="/mes-objets/nouveau" class="btn btn-light btn-lg">
-                    <i class="bi bi-plus-circle me-2"></i>Ajouter un objet
-                </a>
+        </div>
+        <?php endforeach; ?>
+    </div>
+    <?php endif; ?>
+</div>
+
+<!-- Delete Confirmation Modal -->
+<div class="modal fade" id="deleteModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="bi bi-exclamation-triangle text-danger"></i> Confirmer la suppression</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p>Êtes-vous sûr de vouloir supprimer <strong id="deleteItemName"></strong>?</p>
+                <p class="text-muted small">Cette action est irréversible.</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+                <form id="deleteForm" method="POST" style="display: inline;">
+                    <button type="submit" class="btn btn-danger">
+                        <i class="bi bi-trash"></i> Supprimer
+                    </button>
+                </form>
             </div>
         </div>
     </div>
 </div>
 
-<div class="container">
-    <?php if (!empty($success)): ?>
-        <div class="alert alert-success alert-dismissible fade show" role="alert">
-            <i class="bi bi-check-circle me-2"></i><?= htmlspecialchars($success) ?>
-            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-        </div>
-    <?php endif; ?>
+<script>
+function confirmDelete(id, name) {
+    document.getElementById('deleteItemName').textContent = name;
+    document.getElementById('deleteForm').action = '/mes-produits/supprimer/' + id;
+    new bootstrap.Modal(document.getElementById('deleteModal')).show();
+}
+</script>
 
-    <?php if (!empty($error)): ?>
-        <div class="alert alert-danger alert-dismissible fade show" role="alert">
-            <i class="bi bi-exclamation-triangle me-2"></i><?= htmlspecialchars($error) ?>
-            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-        </div>
-    <?php endif; ?>
-
-    <?php if (empty($produits)): ?>
-        <div class="empty-state">
-            <i class="bi bi-box-seam d-block"></i>
-            <h3 class="text-muted">Aucun objet pour le moment</h3>
-            <p class="text-muted mb-4">Commencez par ajouter votre premier objet à échanger !</p>
-            <a href="/mes-objets/nouveau" class="btn btn-primary btn-lg">
-                <i class="bi bi-plus-circle me-2"></i>Ajouter mon premier objet
-            </a>
-        </div>
-    <?php else: ?>
-        <div class="row g-4">
-            <?php foreach ($produits as $produit): ?>
-                <div class="col-md-6 col-lg-4">
-                    <div class="card h-100">
-                        <?php if ($produit['photo']): ?>
-                            <img src="/uploads/<?= htmlspecialchars($produit['photo']) ?>" 
-                                 class="card-img-top" alt="<?= htmlspecialchars($produit['nom']) ?>">
-                        <?php else: ?>
-                            <div class="card-img-top bg-light d-flex align-items-center justify-content-center" 
-                                 style="height: 200px;">
-                                <i class="bi bi-image text-muted" style="font-size: 4rem;"></i>
-                            </div>
-                        <?php endif; ?>
-                        
-                        <div class="card-body">
-                            <div class="d-flex justify-content-between align-items-start mb-2">
-                                <h5 class="card-title mb-0"><?= htmlspecialchars($produit['nom']) ?></h5>
-                                <span class="price-badge"><?= number_format($produit['prix'], 0, ',', ' ') ?> Ar</span>
-                            </div>
-                            
-                            <?php if ($produit['categorie_nom']): ?>
-                                <span class="badge bg-secondary mb-2"><?= htmlspecialchars($produit['categorie_nom']) ?></span>
-                            <?php endif; ?>
-                            
-                            <p class="card-text text-muted small">
-                                <?= htmlspecialchars(substr($produit['description'], 0, 100)) ?>
-                                <?= strlen($produit['description']) > 100 ? '...' : '' ?>
-                            </p>
-                        </div>
-                        
-                        <div class="card-footer bg-transparent border-0 pt-0">
-                            <div class="d-flex gap-2">
-                                <a href="/mes-objets/<?= $produit['id'] ?>/modifier" class="btn btn-outline-primary flex-grow-1">
-                                    <i class="bi bi-pencil me-1"></i>Modifier
-                                </a>
-                                <button type="button" class="btn btn-outline-danger" 
-                                        data-bs-toggle="modal" data-bs-target="#deleteModal<?= $produit['id'] ?>">
-                                    <i class="bi bi-trash"></i>
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <!-- Modal de confirmation de suppression -->
-                    <div class="modal fade" id="deleteModal<?= $produit['id'] ?>" tabindex="-1">
-                        <div class="modal-dialog modal-dialog-centered">
-                            <div class="modal-content">
-                                <div class="modal-header border-0">
-                                    <h5 class="modal-title">Confirmer la suppression</h5>
-                                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-                                </div>
-                                <div class="modal-body">
-                                    <p>Êtes-vous sûr de vouloir supprimer <strong><?= htmlspecialchars($produit['nom']) ?></strong> ?</p>
-                                    <p class="text-muted small mb-0">Cette action est irréversible.</p>
-                                </div>
-                                <div class="modal-footer border-0">
-                                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
-                                    <form action="/mes-objets/<?= $produit['id'] ?>/supprimer" method="POST" class="d-inline">
-                                        <button type="submit" class="btn btn-danger">
-                                            <i class="bi bi-trash me-1"></i>Supprimer
-                                        </button>
-                                    </form>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            <?php endforeach; ?>
-        </div>
-    <?php endif; ?>
-</div>
-
-<?php
+<?php 
 $content = ob_get_clean();
-include __DIR__ . '/../layout.php';
+include __DIR__ . '/../layouts/main.php';
 ?>

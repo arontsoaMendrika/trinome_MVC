@@ -2,113 +2,134 @@
 if (session_status() === PHP_SESSION_NONE) {
     session_start();
 }
-$title = 'Modifier l\'objet - Takalo';
-ob_start();
+ob_start(); 
+
+$photos = !empty($produit['photo']) ? explode(',', $produit['photo']) : [];
 ?>
 
-<div class="container py-5">
+<div class="container py-4">
     <div class="row justify-content-center">
         <div class="col-lg-8">
-            <div class="mb-4">
-                <a href="/mes-objets" class="btn btn-outline-secondary">
-                    <i class="bi bi-arrow-left me-2"></i>Retour à mes objets
-                </a>
-            </div>
+            <!-- Breadcrumb -->
+            <nav aria-label="breadcrumb" class="mb-4">
+                <ol class="breadcrumb">
+                    <li class="breadcrumb-item"><a href="/mes-produits">Mes Objets</a></li>
+                    <li class="breadcrumb-item active">Modifier: <?= htmlspecialchars($produit['nom']) ?></li>
+                </ol>
+            </nav>
 
-            <div class="card shadow-lg">
-                <div class="card-header bg-white py-3">
-                    <h4 class="mb-0">
-                        <i class="bi bi-pencil text-primary me-2"></i>Modifier l'objet
-                    </h4>
+            <div class="card shadow">
+                <div class="card-header bg-primary text-white">
+                    <h4 class="mb-0"><i class="bi bi-pencil-square"></i> Modifier l'objet</h4>
                 </div>
                 <div class="card-body p-4">
                     <?php if (!empty($error)): ?>
-                        <div class="alert alert-danger alert-dismissible fade show" role="alert">
-                            <i class="bi bi-exclamation-triangle me-2"></i><?= $error ?>
-                            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-                        </div>
+                    <div class="alert alert-danger">
+                        <i class="bi bi-exclamation-triangle"></i> <?= $error ?>
+                    </div>
                     <?php endif; ?>
 
-                    <form method="POST" action="/mes-objets/<?= $produit['id'] ?>/modifier" enctype="multipart/form-data">
+                    <form method="POST" action="/mes-produits/modifier/<?= $produit['id'] ?>" enctype="multipart/form-data">
+                        <!-- Titre -->
                         <div class="mb-4">
-                            <label for="nom" class="form-label fw-semibold">
-                                <i class="bi bi-tag me-1"></i>Titre de l'objet <span class="text-danger">*</span>
+                            <label for="nom" class="form-label fw-bold">
+                                <i class="bi bi-tag"></i> Titre de l'objet *
                             </label>
                             <input type="text" class="form-control form-control-lg" id="nom" name="nom" 
-                                   placeholder="Ex: iPhone 12 Pro Max" 
                                    value="<?= htmlspecialchars($produit['nom']) ?>" required>
                         </div>
 
+                        <!-- Description -->
                         <div class="mb-4">
-                            <label for="description" class="form-label fw-semibold">
-                                <i class="bi bi-text-paragraph me-1"></i>Description <span class="text-danger">*</span>
+                            <label for="description" class="form-label fw-bold">
+                                <i class="bi bi-text-paragraph"></i> Description *
                             </label>
                             <textarea class="form-control" id="description" name="description" rows="4" 
-                                      placeholder="Décrivez votre objet en détail..." 
                                       required><?= htmlspecialchars($produit['description']) ?></textarea>
                         </div>
 
-                        <div class="row mb-4">
-                            <div class="col-md-6">
-                                <label for="prix" class="form-label fw-semibold">
-                                    <i class="bi bi-currency-dollar me-1"></i>Prix estimatif (Ar) <span class="text-danger">*</span>
+                        <div class="row">
+                            <!-- Catégorie -->
+                            <div class="col-md-6 mb-4">
+                                <label for="categorie_id" class="form-label fw-bold">
+                                    <i class="bi bi-folder"></i> Catégorie *
                                 </label>
-                                <div class="input-group">
-                                    <input type="number" class="form-control form-control-lg" id="prix" name="prix" 
-                                           placeholder="0" min="0" step="100"
-                                           value="<?= htmlspecialchars($produit['prix']) ?>" required>
-                                    <span class="input-group-text">Ar</span>
-                                </div>
-                            </div>
-                            <div class="col-md-6">
-                                <label for="categorie_id" class="form-label fw-semibold">
-                                    <i class="bi bi-grid me-1"></i>Catégorie
-                                </label>
-                                <select class="form-select form-select-lg" id="categorie_id" name="categorie_id">
-                                    <option value="">-- Sélectionner --</option>
+                                <select class="form-select" id="categorie_id" name="categorie_id" required>
+                                    <option value="">-- Choisir une catégorie --</option>
                                     <?php foreach ($categories as $cat): ?>
-                                        <option value="<?= $cat['id'] ?>" 
+                                    <option value="<?= $cat['id'] ?>" 
                                             <?= $produit['categorie_id'] == $cat['id'] ? 'selected' : '' ?>>
-                                            <?= htmlspecialchars($cat['nom']) ?>
-                                        </option>
+                                        <?= htmlspecialchars($cat['nom']) ?>
+                                    </option>
                                     <?php endforeach; ?>
                                 </select>
                             </div>
-                        </div>
 
-                        <?php if ($produit['photo']): ?>
-                            <div class="mb-4">
-                                <label class="form-label fw-semibold">Photo actuelle</label>
-                                <div class="border rounded p-2 text-center bg-light">
-                                    <img src="/uploads/<?= htmlspecialchars($produit['photo']) ?>" 
-                                         alt="Photo actuelle" class="img-fluid rounded" style="max-height: 200px;">
+                            <!-- Prix -->
+                            <div class="col-md-6 mb-4">
+                                <label for="prix" class="form-label fw-bold">
+                                    <i class="bi bi-currency-exchange"></i> Prix estimatif (Ar) *
+                                </label>
+                                <div class="input-group">
+                                    <input type="number" class="form-control" id="prix" name="prix" 
+                                           value="<?= htmlspecialchars($produit['prix']) ?>" 
+                                           min="1" step="1000" required>
+                                    <span class="input-group-text">Ar</span>
                                 </div>
                             </div>
-                        <?php endif; ?>
-
-                        <div class="mb-4">
-                            <label for="photo" class="form-label fw-semibold">
-                                <i class="bi bi-camera me-1"></i><?= $produit['photo'] ? 'Changer la photo' : 'Ajouter une photo' ?>
-                            </label>
-                            <input type="file" class="form-control form-control-lg" id="photo" name="photo" 
-                                   accept="image/jpeg,image/png,image/gif,image/webp">
-                            <div class="form-text">Formats acceptés : JPG, PNG, GIF, WEBP. Taille max : 5 Mo</div>
                         </div>
 
-                        <div id="imagePreview" class="mb-4" style="display: none;">
-                            <label class="form-label fw-semibold">Nouvelle photo</label>
-                            <div class="border rounded p-2 text-center bg-light">
-                                <img id="previewImg" src="" alt="Aperçu" class="img-fluid rounded" style="max-height: 250px;">
+                        <!-- Photos existantes -->
+                        <div class="mb-4">
+                            <label class="form-label fw-bold">
+                                <i class="bi bi-images"></i> Photos actuelles
+                            </label>
+                            <div class="row g-2">
+                                <?php foreach ($photos as $photo): ?>
+                                <?php $photo = trim($photo); if (empty($photo)) continue; ?>
+                                <div class="col-6 col-md-4">
+                                    <div class="card">
+                                        <img src="/uploads/<?= htmlspecialchars($photo) ?>" 
+                                             class="card-img-top" style="height: 120px; object-fit: cover;"
+                                             onerror="this.src='https://via.placeholder.com/150?text=Image+non+disponible'">
+                                        <div class="card-body p-2">
+                                            <div class="form-check">
+                                                <input class="form-check-input" type="checkbox" 
+                                                       name="delete_photos[]" value="<?= htmlspecialchars($photo) ?>" 
+                                                       id="delete_<?= htmlspecialchars($photo) ?>">
+                                                <label class="form-check-label text-danger small" 
+                                                       for="delete_<?= htmlspecialchars($photo) ?>">
+                                                    <i class="bi bi-trash"></i> Supprimer
+                                                </label>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <?php endforeach; ?>
                             </div>
                         </div>
 
-                        <hr class="my-4">
+                        <!-- Ajouter nouvelles photos -->
+                        <div class="mb-4">
+                            <label for="photos" class="form-label fw-bold">
+                                <i class="bi bi-plus-circle"></i> Ajouter de nouvelles photos
+                            </label>
+                            <input type="file" class="form-control" id="photos" name="photos[]" 
+                                   accept="image/jpeg,image/png,image/gif,image/webp" multiple>
+                            <div class="form-text">Formats acceptés: JPG, PNG, GIF, WebP. Max 5MB par photo.</div>
+                            
+                            <!-- Preview -->
+                            <div id="imagePreview" class="row mt-3 g-2"></div>
+                        </div>
 
-                        <div class="d-flex gap-2 justify-content-end">
-                            <a href="/mes-objets" class="btn btn-outline-secondary btn-lg">Annuler</a>
+                        <!-- Buttons -->
+                        <div class="d-flex gap-2">
                             <button type="submit" class="btn btn-primary btn-lg">
-                                <i class="bi bi-check-circle me-2"></i>Enregistrer les modifications
+                                <i class="bi bi-check-lg"></i> Enregistrer les modifications
                             </button>
+                            <a href="/mes-produits" class="btn btn-outline-secondary btn-lg">
+                                <i class="bi bi-x-lg"></i> Annuler
+                            </a>
                         </div>
                     </form>
                 </div>
@@ -118,25 +139,31 @@ ob_start();
 </div>
 
 <script>
-document.getElementById('photo').addEventListener('change', function(e) {
-    const file = e.target.files[0];
+document.getElementById('photos').addEventListener('change', function(e) {
     const preview = document.getElementById('imagePreview');
-    const previewImg = document.getElementById('previewImg');
+    preview.innerHTML = '';
     
-    if (file) {
+    Array.from(this.files).forEach((file, index) => {
         const reader = new FileReader();
         reader.onload = function(e) {
-            previewImg.src = e.target.result;
-            preview.style.display = 'block';
-        }
+            const col = document.createElement('div');
+            col.className = 'col-6 col-md-4';
+            col.innerHTML = `
+                <div class="card border-success">
+                    <img src="${e.target.result}" class="card-img-top" style="height: 120px; object-fit: cover;">
+                    <div class="card-body p-2 text-center bg-success-subtle">
+                        <small class="text-success"><i class="bi bi-plus-circle"></i> Nouvelle photo ${index + 1}</small>
+                    </div>
+                </div>
+            `;
+            preview.appendChild(col);
+        };
         reader.readAsDataURL(file);
-    } else {
-        preview.style.display = 'none';
-    }
+    });
 });
 </script>
 
-<?php
+<?php 
 $content = ob_get_clean();
-include __DIR__ . '/../layout.php';
+include __DIR__ . '/../layouts/main.php';
 ?>

@@ -2,105 +2,106 @@
 if (session_status() === PHP_SESSION_NONE) {
     session_start();
 }
-$title = 'Nouvel Objet - Takalo';
-$old = $old ?? [];
-ob_start();
+ob_start(); 
 ?>
 
-<div class="container py-5">
+<div class="container py-4">
     <div class="row justify-content-center">
         <div class="col-lg-8">
-            <div class="mb-4">
-                <a href="/mes-objets" class="btn btn-outline-secondary">
-                    <i class="bi bi-arrow-left me-2"></i>Retour à mes objets
-                </a>
-            </div>
+            <!-- Breadcrumb -->
+            <nav aria-label="breadcrumb" class="mb-4">
+                <ol class="breadcrumb">
+                    <li class="breadcrumb-item"><a href="/mes-produits">Mes Objets</a></li>
+                    <li class="breadcrumb-item active">Ajouter un objet</li>
+                </ol>
+            </nav>
 
-            <div class="card shadow-lg">
-                <div class="card-header bg-white py-3">
-                    <h4 class="mb-0">
-                        <i class="bi bi-plus-circle text-primary me-2"></i>Ajouter un nouvel objet
-                    </h4>
+            <div class="card shadow">
+                <div class="card-header bg-primary text-white">
+                    <h4 class="mb-0"><i class="bi bi-plus-circle"></i> Ajouter un nouvel objet</h4>
                 </div>
                 <div class="card-body p-4">
                     <?php if (!empty($error)): ?>
-                        <div class="alert alert-danger alert-dismissible fade show" role="alert">
-                            <i class="bi bi-exclamation-triangle me-2"></i><?= $error ?>
-                            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-                        </div>
+                    <div class="alert alert-danger">
+                        <i class="bi bi-exclamation-triangle"></i> <?= $error ?>
+                    </div>
                     <?php endif; ?>
 
-                    <form method="POST" action="/mes-objets/nouveau" enctype="multipart/form-data">
+                    <form method="POST" action="/mes-produits/ajouter" enctype="multipart/form-data">
+                        <!-- Titre -->
                         <div class="mb-4">
-                            <label for="nom" class="form-label fw-semibold">
-                                <i class="bi bi-tag me-1"></i>Titre de l'objet <span class="text-danger">*</span>
+                            <label for="nom" class="form-label fw-bold">
+                                <i class="bi bi-tag"></i> Titre de l'objet *
                             </label>
                             <input type="text" class="form-control form-control-lg" id="nom" name="nom" 
-                                   placeholder="Ex: iPhone 12 Pro Max" 
-                                   value="<?= htmlspecialchars($old['nom'] ?? '') ?>" required>
+                                   value="<?= htmlspecialchars($old['nom'] ?? '') ?>" 
+                                   placeholder="Ex: iPhone 11 128Go" required>
                         </div>
 
+                        <!-- Description -->
                         <div class="mb-4">
-                            <label for="description" class="form-label fw-semibold">
-                                <i class="bi bi-text-paragraph me-1"></i>Description <span class="text-danger">*</span>
+                            <label for="description" class="form-label fw-bold">
+                                <i class="bi bi-text-paragraph"></i> Description *
                             </label>
                             <textarea class="form-control" id="description" name="description" rows="4" 
-                                      placeholder="Décrivez votre objet en détail (état, caractéristiques, raison de l'échange...)" 
+                                      placeholder="Décrivez votre objet en détail: état, caractéristiques, accessoires inclus..." 
                                       required><?= htmlspecialchars($old['description'] ?? '') ?></textarea>
+                            <div class="form-text">Plus la description est détaillée, plus vous aurez de chances de trouver un échange.</div>
                         </div>
 
-                        <div class="row mb-4">
-                            <div class="col-md-6">
-                                <label for="prix" class="form-label fw-semibold">
-                                    <i class="bi bi-currency-dollar me-1"></i>Prix estimatif (Ar) <span class="text-danger">*</span>
+                        <div class="row">
+                            <!-- Catégorie -->
+                            <div class="col-md-6 mb-4">
+                                <label for="categorie_id" class="form-label fw-bold">
+                                    <i class="bi bi-folder"></i> Catégorie *
                                 </label>
-                                <div class="input-group">
-                                    <input type="number" class="form-control form-control-lg" id="prix" name="prix" 
-                                           placeholder="0" min="0" step="100"
-                                           value="<?= htmlspecialchars($old['prix'] ?? '') ?>" required>
-                                    <span class="input-group-text">Ar</span>
-                                </div>
-                                <div class="form-text">Estimation de la valeur pour l'échange</div>
-                            </div>
-                            <div class="col-md-6">
-                                <label for="categorie_id" class="form-label fw-semibold">
-                                    <i class="bi bi-grid me-1"></i>Catégorie
-                                </label>
-                                <select class="form-select form-select-lg" id="categorie_id" name="categorie_id">
-                                    <option value="">-- Sélectionner --</option>
+                                <select class="form-select" id="categorie_id" name="categorie_id" required>
+                                    <option value="">-- Choisir une catégorie --</option>
                                     <?php foreach ($categories as $cat): ?>
-                                        <option value="<?= $cat['id'] ?>" 
+                                    <option value="<?= $cat['id'] ?>" 
                                             <?= ($old['categorie_id'] ?? '') == $cat['id'] ? 'selected' : '' ?>>
-                                            <?= htmlspecialchars($cat['nom']) ?>
-                                        </option>
+                                        <?= htmlspecialchars($cat['nom']) ?>
+                                    </option>
                                     <?php endforeach; ?>
                                 </select>
                             </div>
-                        </div>
 
-                        <div class="mb-4">
-                            <label for="photo" class="form-label fw-semibold">
-                                <i class="bi bi-camera me-1"></i>Photo de l'objet
-                            </label>
-                            <input type="file" class="form-control form-control-lg" id="photo" name="photo" 
-                                   accept="image/jpeg,image/png,image/gif,image/webp">
-                            <div class="form-text">Formats acceptés : JPG, PNG, GIF, WEBP. Taille max : 5 Mo</div>
-                        </div>
-
-                        <div id="imagePreview" class="mb-4" style="display: none;">
-                            <label class="form-label fw-semibold">Aperçu</label>
-                            <div class="border rounded p-2 text-center bg-light">
-                                <img id="previewImg" src="" alt="Aperçu" class="img-fluid rounded" style="max-height: 250px;">
+                            <!-- Prix -->
+                            <div class="col-md-6 mb-4">
+                                <label for="prix" class="form-label fw-bold">
+                                    <i class="bi bi-currency-exchange"></i> Prix estimatif (Ar) *
+                                </label>
+                                <div class="input-group">
+                                    <input type="number" class="form-control" id="prix" name="prix" 
+                                           value="<?= htmlspecialchars($old['prix'] ?? '') ?>" 
+                                           placeholder="Ex: 500000" min="1" step="1000" required>
+                                    <span class="input-group-text">Ar</span>
+                                </div>
+                                <div class="form-text">Estimez la valeur de votre objet pour les échanges.</div>
                             </div>
                         </div>
 
-                        <hr class="my-4">
+                        <!-- Photos -->
+                        <div class="mb-4">
+                            <label for="photos" class="form-label fw-bold">
+                                <i class="bi bi-images"></i> Photos * (1 à 5 photos)
+                            </label>
+                            <input type="file" class="form-control" id="photos" name="photos[]" 
+                                   accept="image/jpeg,image/png,image/gif,image/webp" multiple required>
+                            <div class="form-text">Formats acceptés: JPG, PNG, GIF, WebP. Max 5MB par photo.</div>
+                            
+                            <!-- Preview -->
+                            <div id="imagePreview" class="row mt-3 g-2"></div>
+                        </div>
 
-                        <div class="d-flex gap-2 justify-content-end">
-                            <a href="/mes-objets" class="btn btn-outline-secondary btn-lg">Annuler</a>
+                        <!-- Buttons -->
+                        <div class="d-flex gap-2">
                             <button type="submit" class="btn btn-primary btn-lg">
-                                <i class="bi bi-check-circle me-2"></i>Ajouter l'objet
+                                <i class="bi bi-check-lg"></i> Publier l'objet
                             </button>
+                            <a href="/mes-produits" class="btn btn-outline-secondary btn-lg">
+                                <i class="bi bi-x-lg"></i> Annuler
+                            </a>
                         </div>
                     </form>
                 </div>
@@ -110,25 +111,37 @@ ob_start();
 </div>
 
 <script>
-document.getElementById('photo').addEventListener('change', function(e) {
-    const file = e.target.files[0];
+document.getElementById('photos').addEventListener('change', function(e) {
     const preview = document.getElementById('imagePreview');
-    const previewImg = document.getElementById('previewImg');
+    preview.innerHTML = '';
     
-    if (file) {
+    if (this.files.length > 5) {
+        alert('Vous pouvez sélectionner maximum 5 photos.');
+        this.value = '';
+        return;
+    }
+    
+    Array.from(this.files).forEach((file, index) => {
         const reader = new FileReader();
         reader.onload = function(e) {
-            previewImg.src = e.target.result;
-            preview.style.display = 'block';
-        }
+            const col = document.createElement('div');
+            col.className = 'col-6 col-md-4';
+            col.innerHTML = `
+                <div class="card">
+                    <img src="${e.target.result}" class="card-img-top" style="height: 120px; object-fit: cover;">
+                    <div class="card-body p-2 text-center">
+                        <small class="text-muted">Photo ${index + 1}</small>
+                    </div>
+                </div>
+            `;
+            preview.appendChild(col);
+        };
         reader.readAsDataURL(file);
-    } else {
-        preview.style.display = 'none';
-    }
+    });
 });
 </script>
 
-<?php
+<?php 
 $content = ob_get_clean();
-include __DIR__ . '/../layout.php';
+include __DIR__ . '/../layouts/main.php';
 ?>
