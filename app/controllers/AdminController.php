@@ -54,4 +54,9 @@ class AdminController {
         $categories = $this->app->db()->fetchAll("SELECT * FROM categorie");
         $this->app->render('admin/categorie', ['categories' => $categories]);
     }
+	public function getCategory($id) {
+		// You could actually pull data from the database if you had one set up
+		$category = $this->app->db()->fetchRow("SELECT * FROM categorie WHERE id = ?", [ $id ]);
+		$this->app->render('admin/categorie/'.$id, ['category' => $category]);
+	}
 }

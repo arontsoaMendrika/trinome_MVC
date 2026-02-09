@@ -16,6 +16,9 @@ $router->get('/admin', function() use ($app) {
 $router->group('/admin', function() use ($router, $app) {
 	$router->get('/categorie', [AdminController::class, 'getCategories']);
 });
+$router->group('/admin/categorie', function() use ($router, $app) {
+	$router->get('/@id', [AdminController::class, 'getCategory']);
+});
 // This wraps all routes in the group with the SecurityHeadersMiddleware
 $router->group('', function(Router $router) use ($app) {
 
