@@ -77,13 +77,8 @@ if (Debugger::$showBar === true && php_sapi_name() !== 'cli') {
 /**********************************************
  *           Database Service Setup           *
  **********************************************/
-// Uncomment and configure the following for your database:
-
-// MySQL Example:
+// MySQL Configuration for Takalo
 $dsn = 'mysql:host=' . $config['database']['host'] . ';dbname=' . $config['database']['dbname'] . ';charset=utf8mb4';
-
-// SQLite Example:
-// $dsn = 'sqlite:' . $config['database']['file_path'];
 
 // Register Flight::db() service
 // In development, use PdoQueryCapture to log queries; in production, use PdoWrapper for performance.
