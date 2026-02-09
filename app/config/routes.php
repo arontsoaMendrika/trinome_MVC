@@ -11,10 +11,10 @@ use flight\net\Router;
  * @var Engine $app
  */
 $router->get('/admin', function() use ($app) {
-	$app->render('admin');
+	$app->render('admin/admin');
 });
-$router->group('/admin', function() use ($router) {
-	$router->get('/categorie', [ AdminController::class, 'getCategories' ]);
+$router->group('/admin', function() use ($router, $app) {
+	$router->get('/categorie', [AdminController::class, 'getCategories']);
 });
 // This wraps all routes in the group with the SecurityHeadersMiddleware
 $router->group('', function(Router $router) use ($app) {

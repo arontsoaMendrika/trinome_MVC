@@ -52,6 +52,6 @@ class AdminController {
     public function getCategories() {
         // You could actually pull data from the database if you had one set up
         $categories = $this->app->db()->fetchAll("SELECT * FROM categorie");
-        $this->app->json($categories, 200, true, 'utf-8', JSON_PRETTY_PRINT);
+        $this->app->render('admin/categorie', ['categories' => $categories]);
     }
 }
