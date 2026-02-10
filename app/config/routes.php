@@ -1,6 +1,8 @@
 <?php
 
 use app\controllers\ApiExampleController;
+use app\controllers\AuthController;
+use app\controllers\ProduitController;
 use app\middlewares\SecurityHeadersMiddleware;
 use flight\Engine;
 use flight\net\Router;
@@ -10,49 +12,38 @@ use flight\net\Router;
  * @var Engine $app
  */
 
+// Démarrer la session
+if (session_status() === PHP_SESSION_NONE) {
+    session_start();
+}
+
 // This wraps all routes in the group with the SecurityHeadersMiddleware
 $router->group('', function(Router $router) use ($app) {
 
-	// Page d'accueil
+	// Page d'accueil - redirection vers login ou mes-objets
 	$router->get('/', function() use ($app) {
-		$app->render('welcome', [ 'message' => 'Bienvenue sur Takalo - La plateforme de troc à Madagascar!' ]);
+		if (isset($_SESSION['user_id'])) {
+			Flight::redirect('/mes-objets');
+		} else {
+			$app->render('accueil');
+		}
 	});
 
-	// ===== ROUTES AUTHENTIFICATION =====
-	
-	// Inscription
-	$router->get('/register', [ AuthController::class, 'showRegister' ]);
-	$router->post('/register', [ AuthController::class, 'register' ]);
-	
-	// Connexion
+	// Routes d'authentification
 	$router->get('/login', [ AuthController::class, 'showLogin' ]);
 	$router->post('/login', [ AuthController::class, 'login' ]);
-	
-	// Déconnexion
+	$router->get('/inscription', [ AuthController::class, 'showRegister' ]);
+	$router->post('/inscription', [ AuthController::class, 'register' ]);
 	$router->get('/logout', [ AuthController::class, 'logout' ]);
 
-	// ===== ROUTES GESTION DES PRODUITS (OBJETS) =====
-	
-	// Liste des produits de l'utilisateur
-	$router->get('/mes-produits', [ ProduitController::class, 'index' ]);
-	
-	// Ajouter un produit
-	$router->get('/mes-produits/ajouter', [ ProduitController::class, 'create' ]);
-	$router->post('/mes-produits/ajouter', [ ProduitController::class, 'store' ]);
-	
-	// Modifier un produit
-	$router->get('/mes-produits/modifier/@id:[0-9]+', [ ProduitController::class, 'edit' ]);
-	$router->post('/mes-produits/modifier/@id:[0-9]+', [ ProduitController::class, 'update' ]);
-	
-	// Supprimer un produit
-	$router->post('/mes-produits/supprimer/@id:[0-9]+', [ ProduitController::class, 'delete' ]);
+	// Routes des produits
+	$router->get('/mes-objets', [ ProduitController::class, 'mesObjets' ]);
+	$router->get('/catalogue', [ ProduitController::class, 'catalogue' ]);
+	$router->post('/produits/ajouter', [ ProduitController::class, 'ajouter' ]);
+	$router->post('/produits/modifier', [ ProduitController::class, 'modifier' ]);
+	$router->get('/produits/supprimer/@id:[0-9]+', [ ProduitController::class, 'supprimer' ]);
 
-	// ===== ROUTES API (existantes) =====
-	
-	$router->get('/hello-world/@name', function($name) {
-		echo '<h1>Hello world! Oh hey '.$name.'!</h1>';
-	});
-
+	// API Examples (keep for reference)
 	$router->group('/api', function() use ($router) {
 		$router->get('/users', [ ApiExampleController::class, 'getUsers' ]);
 		$router->get('/users/@id:[0-9]', [ ApiExampleController::class, 'getUser' ]);

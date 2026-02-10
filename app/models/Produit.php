@@ -2,138 +2,122 @@
 
 namespace app\models;
 
-use flight\database\PdoWrapper;
-
 class Produit {
-    protected PdoWrapper $db;
-
-    public function __construct(PdoWrapper $db) {
+    private $db;
+    
+    public function __construct($db) {
         $this->db = $db;
     }
-
+    
     /**
-     * Récupérer tous les produits d'un utilisateur
+     * Convertir les résultats Collection en tableaux
      */
-    public function getAllByUser(int $userId): array {
-        return $this->db->fetchAll(
-            "SELECT p.*, c.nom as categorie_nom 
-             FROM produits p 
-             LEFT JOIN categorie c ON p.categorie_id = c.id 
-             WHERE p.user_id = ? 
-             ORDER BY p.id DESC",
-            [$userId]
-        ) ?: [];
+    private function toArray($rows) {
+        return array_map(function($row) {
+            return is_array($row) ? $row : $row->getData();
+        }, $rows);
     }
-
-    /**
-     * Récupérer un produit par ID
-     */
-    public function findById(int $id): ?array {
-        return $this->db->fetchRow(
-            "SELECT p.*, c.nom as categorie_nom 
-             FROM produits p 
-             LEFT JOIN categorie c ON p.categorie_id = c.id 
-             WHERE p.id = ?",
-            [$id]
-        ) ?: null;
+    
+    private function rowToArray($row) {
+        if (!$row || (is_object($row) && count($row) === 0)) return null;
+        return is_array($row) ? $row : $row->getData();
     }
-
-    /**
-     * Récupérer un produit par ID et user_id (pour vérifier la propriété)
-     */
-    public function findByIdAndUser(int $id, int $userId): ?array {
-        return $this->db->fetchRow(
-            "SELECT p.*, c.nom as categorie_nom 
-             FROM produits p 
-             LEFT JOIN categorie c ON p.categorie_id = c.id 
-             WHERE p.id = ? AND p.user_id = ?",
-            [$id, $userId]
-        ) ?: null;
-    }
-
+    
     /**
      * Créer un nouveau produit
      */
-    public function create(array $data): int|false {
-        $stmt = $this->db->runQuery(
-            "INSERT INTO produits (nom, description, prix, photo, categorie_id, user_id) 
-             VALUES (?, ?, ?, ?, ?, ?)",
-            [
-                $data['nom'],
-                $data['description'],
-                $data['prix'],
-                $data['photo'],
-                $data['categorie_id'],
-                $data['user_id']
-            ]
+    public function create($nom, $description, $prix, $photo, $categorie_id, $user_id) {
+        $this->db->runQuery(
+            "INSERT INTO produits (nom, description, prix, photo, categorie_id, user_id) VALUES (?, ?, ?, ?, ?, ?)",
+            [$nom, $description, $prix, $photo, $categorie_id, $user_id]
         );
-        
-        if ($stmt->rowCount() > 0) {
-            return (int) $this->db->lastInsertId();
-        }
-        return false;
+        return true;
     }
-
+    
+    /**
+     * Récupérer tous les produits d'un utilisateur
+     */
+    public function findByUserId($user_id) {
+        $rows = $this->db->fetchAll("
+            SELECT p.*, c.nom as categorie_nom 
+            FROM produits p
+            LEFT JOIN categorie c ON p.categorie_id = c.id
+            WHERE p.user_id = ?
+            ORDER BY p.id DESC
+        ", [$user_id]);
+        return $this->toArray($rows);
+    }
+    
+    /**
+     * Récupérer tous les produits (sauf ceux de l'utilisateur connecté)
+     */
+    public function findAllExcept($user_id = null) {
+        if ($user_id) {
+            $rows = $this->db->fetchAll("
+                SELECT p.*, c.nom as categorie_nom, u.nom as proprietaire 
+                FROM produits p
+                LEFT JOIN categorie c ON p.categorie_id = c.id
+                LEFT JOIN users u ON p.user_id = u.id
+                WHERE p.user_id != ?
+                ORDER BY p.id DESC
+            ", [$user_id]);
+        } else {
+            $rows = $this->db->fetchAll("
+                SELECT p.*, c.nom as categorie_nom, u.nom as proprietaire 
+                FROM produits p
+                LEFT JOIN categorie c ON p.categorie_id = c.id
+                LEFT JOIN users u ON p.user_id = u.id
+                ORDER BY p.id DESC
+            ");
+        }
+        return $this->toArray($rows);
+    }
+    
+    /**
+     * Récupérer un produit par ID
+     */
+    public function findById($id) {
+        $row = $this->db->fetchRow("
+            SELECT p.*, c.nom as categorie_nom, u.nom as proprietaire, u.email as proprietaire_email 
+            FROM produits p
+            LEFT JOIN categorie c ON p.categorie_id = c.id
+            LEFT JOIN users u ON p.user_id = u.id
+            WHERE p.id = ?
+        ", [$id]);
+        return $this->rowToArray($row);
+    }
+    
     /**
      * Mettre à jour un produit
      */
-    public function update(int $id, array $data): bool {
-        $stmt = $this->db->runQuery(
-            "UPDATE produits 
-             SET nom = ?, description = ?, prix = ?, photo = ?, categorie_id = ? 
-             WHERE id = ?",
-            [
-                $data['nom'],
-                $data['description'],
-                $data['prix'],
-                $data['photo'],
-                $data['categorie_id'],
-                $id
-            ]
-        );
-        return $stmt->rowCount() >= 0;
+    public function update($id, $nom, $description, $prix, $photo, $categorie_id) {
+        if ($photo) {
+            $this->db->runQuery(
+                "UPDATE produits SET nom = ?, description = ?, prix = ?, photo = ?, categorie_id = ? WHERE id = ?",
+                [$nom, $description, $prix, $photo, $categorie_id, $id]
+            );
+        } else {
+            $this->db->runQuery(
+                "UPDATE produits SET nom = ?, description = ?, prix = ?, categorie_id = ? WHERE id = ?",
+                [$nom, $description, $prix, $categorie_id, $id]
+            );
+        }
+        return true;
     }
-
+    
     /**
      * Supprimer un produit
      */
-    public function delete(int $id): bool {
-        $stmt = $this->db->runQuery("DELETE FROM produits WHERE id = ?", [$id]);
-        return $stmt->rowCount() > 0;
+    public function delete($id, $user_id) {
+        $this->db->runQuery("DELETE FROM produits WHERE id = ? AND user_id = ?", [$id, $user_id]);
+        return true;
     }
-
+    
     /**
      * Récupérer toutes les catégories
      */
-    public function getAllCategories(): array {
-        return $this->db->fetchAll("SELECT * FROM categorie ORDER BY nom") ?: [];
-    }
-
-    /**
-     * Récupérer tous les produits (pour la page d'accueil publique)
-     */
-    public function getAll(): array {
-        return $this->db->fetchAll(
-            "SELECT p.*, c.nom as categorie_nom, u.nom as user_nom 
-             FROM produits p 
-             LEFT JOIN categorie c ON p.categorie_id = c.id 
-             LEFT JOIN users u ON p.user_id = u.id 
-             ORDER BY p.id DESC"
-        ) ?: [];
-    }
-
-    /**
-     * Récupérer les produits par catégorie
-     */
-    public function getByCategorie(int $categorieId): array {
-        return $this->db->fetchAll(
-            "SELECT p.*, c.nom as categorie_nom, u.nom as user_nom 
-             FROM produits p 
-             LEFT JOIN categorie c ON p.categorie_id = c.id 
-             LEFT JOIN users u ON p.user_id = u.id 
-             WHERE p.categorie_id = ? 
-             ORDER BY p.id DESC",
-            [$categorieId]
-        ) ?: [];
+    public function getCategories() {
+        $rows = $this->db->fetchAll("SELECT * FROM categorie ORDER BY nom");
+        return $this->toArray($rows);
     }
 }

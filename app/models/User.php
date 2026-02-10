@@ -2,53 +2,72 @@
 
 namespace app\models;
 
-use flight\database\PdoWrapper;
-
 class User {
-    protected PdoWrapper $db;
-
-    public function __construct(PdoWrapper $db) {
+    private $db;
+    
+    public function __construct($db) {
         $this->db = $db;
     }
-
+    
     /**
      * Créer un nouvel utilisateur
      */
-    public function create(string $nom, string $email, string $motdepasse): bool {
-        $hash = password_hash($motdepasse, PASSWORD_DEFAULT);
-        $stmt = $this->db->runQuery(
-            "INSERT INTO users (nom, email, motdepasse) VALUES (?, ?, ?)",
-            [$nom, $email, $hash]
-        );
-        return $stmt->rowCount() > 0;
+    public function create($nom, $email, $motdepasse) {
+        $hashedPassword = password_hash($motdepasse, PASSWORD_DEFAULT);
+        $this->db->runQuery("INSERT INTO users (nom, email, motdepasse) VALUES (?, ?, ?)", [$nom, $email, $hashedPassword]);
+        return true;
     }
-
-    /**
-     * Trouver un utilisateur par email
-     */
-    public function findByEmail(string $email): ?array {
-        return $this->db->fetchRow("SELECT * FROM users WHERE email = ?", [$email]) ?: null;
-    }
-
-    /**
-     * Trouver un utilisateur par ID
-     */
-    public function findById(int $id): ?array {
-        return $this->db->fetchRow("SELECT * FROM users WHERE id = ?", [$id]) ?: null;
-    }
-
-    /**
-     * Vérifier le mot de passe
-     */
-    public function verifyPassword(string $motdepasse, string $hash): bool {
-        return password_verify($motdepasse, $hash);
-    }
-
+    
     /**
      * Vérifier si un email existe déjà
      */
-    public function emailExists(string $email): bool {
-        $result = $this->db->fetchRow("SELECT id FROM users WHERE email = ?", [$email]);
-        return !empty($result);
+    public function emailExists($email) {
+        $result = $this->db->fetchField("SELECT COUNT(*) FROM users WHERE email = ?", [$email]);
+        return intval($result) > 0;
+    }
+    
+    /**
+     * Authentifier un utilisateur
+     */
+    public function authenticate($email, $motdepasse) {
+        $row = $this->db->fetchRow("SELECT * FROM users WHERE email = ?", [$email]);
+        
+        // fetchRow retourne une Collection vide si aucun résultat
+        // Un objet est toujours truthy en PHP, il faut vérifier count()
+        if (!$row || (is_object($row) && count($row) === 0)) {
+            return false;
+        }
+        
+        // Convertir Collection en tableau si nécessaire
+        $user = is_array($row) ? $row : $row->getData();
+        
+        // Vérifier que la clé motdepasse existe
+        if (!isset($user['motdepasse'])) {
+            return false;
+        }
+        
+        if (password_verify($motdepasse, $user['motdepasse'])) {
+            return $user;
+        }
+        return false;
+    }
+    
+    /**
+     * Récupérer un utilisateur par ID
+     */
+    public function findById($id) {
+        $row = $this->db->fetchRow("SELECT id, nom, email FROM users WHERE id = ?", [$id]);
+        if (!$row || (is_object($row) && count($row) === 0)) return null;
+        return is_array($row) ? $row : $row->getData();
+    }
+    
+    /**
+     * Récupérer tous les utilisateurs
+     */
+    public function findAll() {
+        $rows = $this->db->fetchAll("SELECT id, nom, email FROM users ORDER BY nom");
+        return array_map(function($row) {
+            return is_array($row) ? $row : $row->getData();
+        }, $rows);
     }
 }

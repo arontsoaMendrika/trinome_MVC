@@ -3,386 +3,167 @@
 namespace app\controllers;
 
 use app\models\Produit;
-use flight\Engine;
+use Flight;
 
 class ProduitController {
-
-    protected Engine $app;
-
-    public function __construct(Engine $app) {
-        $this->app = $app;
+    
+    private function getProduitModel() {
+        return new Produit(Flight::app()->db());
     }
-
+    
     /**
      * Vérifier si l'utilisateur est connecté
      */
-    private function requireAuth(): ?array {
-        if (session_status() === PHP_SESSION_NONE) {
-            session_start();
+    private function checkAuth() {
+        if (!isset($_SESSION['user_id'])) {
+            Flight::redirect('/login');
+            return false;
         }
-        
-        if (empty($_SESSION['logged_in']) || empty($_SESSION['user_id'])) {
-            $this->app->redirect('/login');
-            return null;
-        }
-        
-        return [
-            'id' => $_SESSION['user_id'],
-            'nom' => $_SESSION['user_nom'],
-            'email' => $_SESSION['user_email']
-        ];
+        return true;
     }
-
+    
     /**
-     * Liste des produits de l'utilisateur
+     * Afficher la liste des objets de l'utilisateur
      */
-    public function index(): void {
-        $user = $this->requireAuth();
-        if (!$user) return;
-
-        $produitModel = new Produit($this->app->db());
-        $produits = $produitModel->getAllByUser($user['id']);
-
-        $this->app->render('produits/index', [
-            'title' => 'Mes Objets - Takalo',
+    public function mesObjets() {
+        if (!$this->checkAuth()) return;
+        
+        $model = $this->getProduitModel();
+        $produits = $model->findByUserId($_SESSION['user_id']);
+        $categories = $model->getCategories();
+        
+        Flight::render('produits/mes-objets', [
+            'title' => 'Mes objets - E-Takalo',
             'produits' => $produits,
-            'user' => $user,
-            'success' => $_SESSION['flash_success'] ?? null
-        ]);
-        
-        unset($_SESSION['flash_success']);
-    }
-
-    /**
-     * Formulaire de création d'un produit
-     */
-    public function create(): void {
-        $user = $this->requireAuth();
-        if (!$user) return;
-
-        $produitModel = new Produit($this->app->db());
-        $categories = $produitModel->getAllCategories();
-
-        $this->app->render('produits/create', [
-            'title' => 'Ajouter un objet - Takalo',
             'categories' => $categories,
-            'user' => $user,
-            'error' => null,
-            'old' => []
+            'user_nom' => $_SESSION['user_nom']
         ]);
     }
-
+    
     /**
-     * Enregistrer un nouveau produit
+     * Afficher tous les objets disponibles à l'échange
      */
-    public function store(): void {
-        $user = $this->requireAuth();
-        if (!$user) return;
-
-        $nom = trim($this->app->request()->data->nom ?? '');
-        $description = trim($this->app->request()->data->description ?? '');
-        $prix = floatval($this->app->request()->data->prix ?? 0);
-        $categorie_id = intval($this->app->request()->data->categorie_id ?? 0);
-
+    public function catalogue() {
+        if (!$this->checkAuth()) return;
+        
+        $produits = $this->getProduitModel()->findAllExcept($_SESSION['user_id']);
+        
+        Flight::render('produits/catalogue', [
+            'title' => 'Catalogue - E-Takalo',
+            'produits' => $produits,
+            'user_nom' => $_SESSION['user_nom']
+        ]);
+    }
+    
+    /**
+     * Ajouter un nouveau produit
+     */
+    public function ajouter() {
+        if (!$this->checkAuth()) return;
+        
+        $nom = $_POST['nom'] ?? '';
+        $description = $_POST['description'] ?? '';
+        $prix = $_POST['prix'] ?? 0;
+        $categorie_id = $_POST['categorie_id'] ?? null;
+        
         // Validation
-        $errors = [];
-        
-        if (empty($nom)) {
-            $errors[] = "Le titre est requis.";
-        }
-        
-        if (empty($description)) {
-            $errors[] = "La description est requise.";
-        }
-        
-        if ($prix <= 0) {
-            $errors[] = "Le prix estimatif doit être supérieur à 0.";
-        }
-        
-        if ($categorie_id <= 0) {
-            $errors[] = "Veuillez sélectionner une catégorie.";
-        }
-
-        // Gestion des photos
-        $photos = [];
-        $uploadDir = __DIR__ . '/../../public/uploads/';
-        
-        if (!is_dir($uploadDir)) {
-            mkdir($uploadDir, 0755, true);
-        }
-
-        if (!empty($_FILES['photos']['name'][0])) {
-            $allowedTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
-            
-            foreach ($_FILES['photos']['name'] as $key => $filename) {
-                if ($_FILES['photos']['error'][$key] === UPLOAD_ERR_OK) {
-                    $tmpName = $_FILES['photos']['tmp_name'][$key];
-                    $fileType = $_FILES['photos']['type'][$key];
-                    
-                    if (!in_array($fileType, $allowedTypes)) {
-                        $errors[] = "Le fichier '$filename' n'est pas une image valide.";
-                        continue;
-                    }
-                    
-                    if ($_FILES['photos']['size'][$key] > 5 * 1024 * 1024) { // 5MB max
-                        $errors[] = "Le fichier '$filename' est trop volumineux (max 5MB).";
-                        continue;
-                    }
-                    
-                    $extension = pathinfo($filename, PATHINFO_EXTENSION);
-                    $newFilename = uniqid('produit_') . '.' . $extension;
-                    
-                    if (move_uploaded_file($tmpName, $uploadDir . $newFilename)) {
-                        $photos[] = $newFilename;
-                    } else {
-                        $errors[] = "Erreur lors de l'upload de '$filename'.";
-                    }
-                }
-            }
-        }
-
-        if (empty($photos)) {
-            $errors[] = "Au moins une photo est requise.";
-        }
-
-        if (!empty($errors)) {
-            $produitModel = new Produit($this->app->db());
-            $categories = $produitModel->getAllCategories();
-            
-            $this->app->render('produits/create', [
-                'title' => 'Ajouter un objet - Takalo',
-                'categories' => $categories,
-                'user' => $user,
-                'error' => implode('<br>', $errors),
-                'old' => [
-                    'nom' => $nom,
-                    'description' => $description,
-                    'prix' => $prix,
-                    'categorie_id' => $categorie_id
-                ]
-            ]);
+        if (empty($nom) || empty($description)) {
+            $_SESSION['error'] = 'Le nom et la description sont obligatoires';
+            Flight::redirect('/mes-objets');
             return;
         }
-
-        // Sauvegarder les photos en JSON (plusieurs photos)
-        $photoJson = implode(',', $photos);
-
-        $produitModel = new Produit($this->app->db());
-        $result = $produitModel->create([
-            'nom' => $nom,
-            'description' => $description,
-            'prix' => $prix,
-            'photo' => $photoJson,
-            'categorie_id' => $categorie_id,
-            'user_id' => $user['id']
-        ]);
-
-        if ($result) {
-            $_SESSION['flash_success'] = "Objet ajouté avec succès!";
-            $this->app->redirect('/mes-produits');
+        
+        // Gestion de l'upload de photo
+        $photo = 'default.jpg';
+        if (isset($_FILES['photo']) && $_FILES['photo']['error'] === UPLOAD_ERR_OK) {
+            $uploadDir = __DIR__ . '/../../public/uploads/';
+            if (!file_exists($uploadDir)) {
+                mkdir($uploadDir, 0755, true);
+            }
+            
+            $extension = pathinfo($_FILES['photo']['name'], PATHINFO_EXTENSION);
+            $photo = uniqid() . '.' . $extension;
+            $uploadFile = $uploadDir . $photo;
+            
+            if (!move_uploaded_file($_FILES['photo']['tmp_name'], $uploadFile)) {
+                $photo = 'default.jpg';
+            }
+        }
+        
+        if ($this->getProduitModel()->create($nom, $description, $prix, $photo, $categorie_id, $_SESSION['user_id'])) {
+            $_SESSION['success'] = 'Objet ajouté avec succès !';
         } else {
-            $categories = $produitModel->getAllCategories();
-            $this->app->render('produits/create', [
-                'title' => 'Ajouter un objet - Takalo',
-                'categories' => $categories,
-                'user' => $user,
-                'error' => "Erreur lors de l'ajout. Veuillez réessayer.",
-                'old' => [
-                    'nom' => $nom,
-                    'description' => $description,
-                    'prix' => $prix,
-                    'categorie_id' => $categorie_id
-                ]
-            ]);
+            $_SESSION['error'] = 'Erreur lors de l\'ajout de l\'objet';
         }
+        
+        Flight::redirect('/mes-objets');
     }
-
+    
     /**
-     * Formulaire de modification d'un produit
+     * Modifier un produit
      */
-    public function edit(int $id): void {
-        $user = $this->requireAuth();
-        if (!$user) return;
-
-        $produitModel = new Produit($this->app->db());
-        $produit = $produitModel->findByIdAndUser($id, $user['id']);
-
-        if (!$produit) {
-            $this->app->redirect('/mes-produits');
+    public function modifier() {
+        if (!$this->checkAuth()) return;
+        
+        $id = $_POST['id'] ?? null;
+        $nom = $_POST['nom'] ?? '';
+        $description = $_POST['description'] ?? '';
+        $prix = $_POST['prix'] ?? 0;
+        $categorie_id = $_POST['categorie_id'] ?? null;
+        
+        if (!$id) {
+            $_SESSION['error'] = 'ID du produit manquant';
+            Flight::redirect('/mes-objets');
             return;
         }
-
-        $categories = $produitModel->getAllCategories();
-
-        $this->app->render('produits/edit', [
-            'title' => 'Modifier - ' . $produit['nom'],
-            'produit' => $produit,
-            'categories' => $categories,
-            'user' => $user,
-            'error' => null
-        ]);
-    }
-
-    /**
-     * Mettre à jour un produit
-     */
-    public function update(int $id): void {
-        $user = $this->requireAuth();
-        if (!$user) return;
-
-        $produitModel = new Produit($this->app->db());
-        $produit = $produitModel->findByIdAndUser($id, $user['id']);
-
-        if (!$produit) {
-            $this->app->redirect('/mes-produits');
+        
+        // Vérifier que le produit appartient à l'utilisateur
+        $model = $this->getProduitModel();
+        $produit = $model->findById($id);
+        if (!$produit || $produit['user_id'] != $_SESSION['user_id']) {
+            $_SESSION['error'] = 'Produit introuvable';
+            Flight::redirect('/mes-objets');
             return;
         }
-
-        $nom = trim($this->app->request()->data->nom ?? '');
-        $description = trim($this->app->request()->data->description ?? '');
-        $prix = floatval($this->app->request()->data->prix ?? 0);
-        $categorie_id = intval($this->app->request()->data->categorie_id ?? 0);
-
-        // Validation
-        $errors = [];
         
-        if (empty($nom)) {
-            $errors[] = "Le titre est requis.";
-        }
-        
-        if (empty($description)) {
-            $errors[] = "La description est requise.";
-        }
-        
-        if ($prix <= 0) {
-            $errors[] = "Le prix estimatif doit être supérieur à 0.";
-        }
-        
-        if ($categorie_id <= 0) {
-            $errors[] = "Veuillez sélectionner une catégorie.";
-        }
-
-        // Gestion des nouvelles photos
-        $photos = explode(',', $produit['photo']);
-        $uploadDir = __DIR__ . '/../../public/uploads/';
-
-        if (!empty($_FILES['photos']['name'][0])) {
-            $allowedTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
+        // Gestion de l'upload de photo
+        $photo = null;
+        if (isset($_FILES['photo']) && $_FILES['photo']['error'] === UPLOAD_ERR_OK) {
+            $uploadDir = __DIR__ . '/../../public/uploads/';
+            if (!file_exists($uploadDir)) {
+                mkdir($uploadDir, 0755, true);
+            }
             
-            foreach ($_FILES['photos']['name'] as $key => $filename) {
-                if ($_FILES['photos']['error'][$key] === UPLOAD_ERR_OK) {
-                    $tmpName = $_FILES['photos']['tmp_name'][$key];
-                    $fileType = $_FILES['photos']['type'][$key];
-                    
-                    if (!in_array($fileType, $allowedTypes)) {
-                        $errors[] = "Le fichier '$filename' n'est pas une image valide.";
-                        continue;
-                    }
-                    
-                    if ($_FILES['photos']['size'][$key] > 5 * 1024 * 1024) {
-                        $errors[] = "Le fichier '$filename' est trop volumineux (max 5MB).";
-                        continue;
-                    }
-                    
-                    $extension = pathinfo($filename, PATHINFO_EXTENSION);
-                    $newFilename = uniqid('produit_') . '.' . $extension;
-                    
-                    if (move_uploaded_file($tmpName, $uploadDir . $newFilename)) {
-                        $photos[] = $newFilename;
-                    }
-                }
+            $extension = pathinfo($_FILES['photo']['name'], PATHINFO_EXTENSION);
+            $photo = uniqid() . '.' . $extension;
+            $uploadFile = $uploadDir . $photo;
+            
+            if (!move_uploaded_file($_FILES['photo']['tmp_name'], $uploadFile)) {
+                $photo = null;
             }
         }
-
-        // Supprimer les photos sélectionnées
-        $photosToDelete = $this->app->request()->data->delete_photos ?? [];
-        if (!empty($photosToDelete)) {
-            foreach ($photosToDelete as $photoToDelete) {
-                $photoPath = $uploadDir . $photoToDelete;
-                if (file_exists($photoPath)) {
-                    unlink($photoPath);
-                }
-                $photos = array_filter($photos, fn($p) => $p !== $photoToDelete);
-            }
-        }
-
-        $photos = array_filter($photos); // Remove empty values
-
-        if (empty($photos)) {
-            $errors[] = "Au moins une photo est requise.";
-        }
-
-        if (!empty($errors)) {
-            $categories = $produitModel->getAllCategories();
-            $produit['nom'] = $nom;
-            $produit['description'] = $description;
-            $produit['prix'] = $prix;
-            $produit['categorie_id'] = $categorie_id;
-            
-            $this->app->render('produits/edit', [
-                'title' => 'Modifier - ' . $nom,
-                'produit' => $produit,
-                'categories' => $categories,
-                'user' => $user,
-                'error' => implode('<br>', $errors)
-            ]);
-            return;
-        }
-
-        $photoJson = implode(',', $photos);
-
-        $result = $produitModel->update($id, [
-            'nom' => $nom,
-            'description' => $description,
-            'prix' => $prix,
-            'photo' => $photoJson,
-            'categorie_id' => $categorie_id
-        ]);
-
-        if ($result) {
-            $_SESSION['flash_success'] = "Objet modifié avec succès!";
-            $this->app->redirect('/mes-produits');
+        
+        if ($model->update($id, $nom, $description, $prix, $photo, $categorie_id)) {
+            $_SESSION['success'] = 'Objet modifié avec succès !';
         } else {
-            $categories = $produitModel->getAllCategories();
-            $this->app->render('produits/edit', [
-                'title' => 'Modifier - ' . $nom,
-                'produit' => $produit,
-                'categories' => $categories,
-                'user' => $user,
-                'error' => "Erreur lors de la modification."
-            ]);
+            $_SESSION['error'] = 'Erreur lors de la modification';
         }
+        
+        Flight::redirect('/mes-objets');
     }
-
+    
     /**
      * Supprimer un produit
      */
-    public function delete(int $id): void {
-        $user = $this->requireAuth();
-        if (!$user) return;
-
-        $produitModel = new Produit($this->app->db());
-        $produit = $produitModel->findByIdAndUser($id, $user['id']);
-
-        if (!$produit) {
-            $this->app->redirect('/mes-produits');
-            return;
-        }
-
-        // Supprimer les photos
-        $photos = explode(',', $produit['photo']);
-        $uploadDir = __DIR__ . '/../../public/uploads/';
+    public function supprimer($id) {
+        if (!$this->checkAuth()) return;
         
-        foreach ($photos as $photo) {
-            $photoPath = $uploadDir . trim($photo);
-            if (file_exists($photoPath)) {
-                unlink($photoPath);
-            }
+        if ($this->getProduitModel()->delete($id, $_SESSION['user_id'])) {
+            $_SESSION['success'] = 'Objet supprimé avec succès !';
+        } else {
+            $_SESSION['error'] = 'Erreur lors de la suppression';
         }
-
-        $produitModel->delete($id);
         
-        $_SESSION['flash_success'] = "Objet supprimé avec succès!";
-        $this->app->redirect('/mes-produits');
+        Flight::redirect('/mes-objets');
     }
 }
