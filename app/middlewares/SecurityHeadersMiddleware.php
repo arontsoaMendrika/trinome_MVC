@@ -19,13 +19,9 @@ class SecurityHeadersMiddleware
 	{
 		$nonce = $this->app->get('csp_nonce');
 
-		// development mode to execute Tracy debug bar CSS
-		$tracyCssBypass = "'nonce-{$nonce}'";
-		if(Debugger::$showBar === true) {
-			$tracyCssBypass = ' \'unsafe-inline\'';
-		}
+		// Development mode: relax CSP for Tracy debug bar and inline styles
+		$csp = "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self' data:; connect-src 'self';";
 
-		$csp = "default-src 'self'; script-src 'self' 'nonce-{$nonce}' 'strict-dynamic'; style-src 'self' {$tracyCssBypass}; img-src 'self' data:;";
 		$this->app->response()->header('X-Frame-Options', 'SAMEORIGIN');
 		$this->app->response()->header("Content-Security-Policy", $csp);
 		$this->app->response()->header('X-XSS-Protection', '1; mode=block');
