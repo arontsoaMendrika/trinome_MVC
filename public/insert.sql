@@ -1,9 +1,9 @@
 INSERT INTO users (nom, email, motdepasse) VALUES
-('Rakoto Andrianina',  'rakoto@gmail.com',     'takalo123'),
-('Marie Jeanne',       'marie.jeanne@yahoo.fr','takalo123'),
-('Jean Dupont',        'jean.dupont@outlook.com','takalo123'),
-('Miora Rasoa',        'miora.rasoa@gmail.com',  'takalo123'),
-('Tiana Razafy',       'tiana@gmail.com',        'takalo123');
+('Rakoto Andrianina',  'rakoto@gmail.com',     '$2y$10$w1j/QPvdZ60uQfcaoOl/o.DOW7.h7aoME5u.sqlku7dOOLxycOtsSs'),
+('Marie Jeanne',       'marie.jeanne@yahoo.fr','$2y$10$w1j/QPvdZ60uQfcaoOl/o.DOW7.h7aoME5u.sqlku7dOOLxycOtsSs'),
+('Jean Dupont',        'jean.dupont@outlook.com','$2y$10$w1j/QPvdZ60uQfcaoOl/o.DOW7.h7aoME5u.sqlku7dOOLxycOtsSs'),
+('Miora Rasoa',        'miora.rasoa@gmail.com',  '$2y$10$w1j/QPvdZ60uQfcaoOl/o.DOW7.h7aoME5u.sqlku7dOOLxycOtsSs'),
+('Tiana Razafy',       'tiana@gmail.com',        '$2y$10$w1j/QPvdZ60uQfcaoOl/o.DOW7.h7aoME5u.sqlku7dOOLxycOtsSs');
 
 -- 2. Catégories (très utilisées à Madagascar pour le troc)
 INSERT INTO categorie (nom) VALUES

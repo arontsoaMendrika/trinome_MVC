@@ -77,18 +77,17 @@ if (Debugger::$showBar === true && php_sapi_name() !== 'cli') {
 /**********************************************
  *           Database Service Setup           *
  **********************************************/
-// Uncomment and configure the following for your database:
-
-// MySQL Example:
-// $dsn = 'mysql:host=' . $config['database']['host'] . ';dbname=' . $config['database']['dbname'] . ';charset=utf8mb4';
-
-// SQLite Example:
-// $dsn = 'sqlite:' . $config['database']['file_path'];
+// MySQL Configuration for E-Takalo
+$dsn = 'mysql:host=' . $config['database']['host'] . ';dbname=' . $config['database']['dbname'] . ';charset=utf8mb4';
 
 // Register Flight::db() service
 // In development, use PdoQueryCapture to log queries; in production, use PdoWrapper for performance.
-// $pdoClass = Debugger::$showBar === true ? PdoQueryCapture::class : PdoWrapper::class;
-// $app->register('db', $pdoClass, [ $dsn, $config['database']['user'] ?? null, $config['database']['password'] ?? null ]);
+$pdoClass = Debugger::$showBar === true ? PdoQueryCapture::class : PdoWrapper::class;
+$app->register('db', $pdoClass, [ $dsn, $config['database']['user'] ?? null, $config['database']['password'] ?? null, [
+	PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
+	PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
+	PDO::ATTR_EMULATE_PREPARES => false,
+]]);
 
 /**********************************************
  *         Third-Party Integrations           *
