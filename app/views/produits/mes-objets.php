@@ -169,8 +169,9 @@
                             </select>
                         </div>
                         <div class="mb-3">
-                            <label for="photo" class="form-label">Photo</label>
-                            <input type="file" class="form-control" id="photo" name="photo" accept="image/*">
+                            <label for="photos" class="form-label">Photos (plusieurs photos possibles)</label>
+                            <input type="file" class="form-control" id="photos" name="photos[]" accept="image/*" multiple>
+                            <div class="form-text">Vous pouvez sélectionner plusieurs photos en maintenant Ctrl (ou Cmd sur Mac) enfoncé.</div>
                         </div>
                     </div>
                     <div class="modal-footer">
@@ -215,8 +216,9 @@
                             </select>
                         </div>
                         <div class="mb-3">
-                            <label for="edit_photo" class="form-label">Nouvelle photo (optionnel)</label>
-                            <input type="file" class="form-control" id="edit_photo" name="photo" accept="image/*">
+                            <label for="edit_photos" class="form-label">Nouvelles photos (optionnel - remplacera les anciennes)</label>
+                            <input type="file" class="form-control" id="edit_photos" name="photos[]" accept="image/*" multiple>
+                            <div class="form-text">Vous pouvez sélectionner plusieurs photos. Les anciennes photos seront remplacées.</div>
                         </div>
                     </div>
                     <div class="modal-footer">
