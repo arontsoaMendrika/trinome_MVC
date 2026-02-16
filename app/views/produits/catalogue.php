@@ -79,7 +79,27 @@
             </div>
         </div>
 
-        <div class="row">
+        <!-- Barre de recherche -->
+        <div class="row mb-4">
+            <div class="col-md-6">
+                <input type="text" id="searchInput" class="form-control" placeholder="Rechercher par titre...">
+            </div>
+            <div class="col-md-4">
+                <select id="categorySelect" class="form-select">
+                    <option value="">Toutes les catégories</option>
+                    <?php foreach ($categories as $categorie): ?>
+                        <option value="<?= htmlspecialchars($categorie['nom']) ?>"><?= htmlspecialchars($categorie['nom']) ?></option>
+                    <?php endforeach; ?>
+                </select>
+            </div>
+            <div class="col-md-2">
+                <button id="clearSearch" class="btn btn-secondary w-100">
+                    <i class="bi bi-x-circle"></i> Effacer
+                </button>
+            </div>
+        </div>
+
+        <div class="row" id="productsContainer">
             <?php if (empty($produits)): ?>
                 <div class="col-12">
                     <div class="alert alert-info text-center">
@@ -88,7 +108,7 @@
                 </div>
             <?php else: ?>
                 <?php foreach ($produits as $produit): ?>
-                    <div class="col-md-4 mb-4" data-aos="fade-up">
+                    <div class="col-md-4 mb-4 product-card" data-aos="fade-up" data-title="<?= htmlspecialchars(strtolower($produit['nom'])) ?>" data-category="<?= htmlspecialchars(strtolower($produit['categorie_nom'] ?? '')) ?>">
                         <div class="card">
                             <img src="/uploads/<?= htmlspecialchars($produit['photo']) ?>" 
                                  class="card-img-top product-image" 
@@ -124,7 +144,19 @@
                 <div class="modal-body">
                     <div class="row">
                         <div class="col-md-6">
-                            <img id="detailsImage" src="" class="img-fluid rounded" alt="">
+                            <div id="photoCarousel" class="carousel slide" data-bs-ride="carousel">
+                                <div class="carousel-inner" id="carouselInner">
+                                    <!-- Les photos seront ajoutées dynamiquement par JavaScript -->
+                                </div>
+                                <button class="carousel-control-prev" type="button" data-bs-target="#photoCarousel" data-bs-slide="prev">
+                                    <span class="carousel-control-prev-icon" aria-hidden="true"></span>
+                                    <span class="visually-hidden">Précédent</span>
+                                </button>
+                                <button class="carousel-control-next" type="button" data-bs-target="#photoCarousel" data-bs-slide="next">
+                                    <span class="carousel-control-next-icon" aria-hidden="true"></span>
+                                    <span class="visually-hidden">Suivant</span>
+                                </button>
+                            </div>
                         </div>
                         <div class="col-md-6">
                             <p><strong>Catégorie:</strong> <span id="detailsCategorie" class="badge bg-secondary"></span></p>
@@ -160,7 +192,6 @@
 
         function showDetails(produit) {
             document.getElementById('detailsTitle').textContent = produit.nom;
-            document.getElementById('detailsImage').src = '/uploads/' + produit.photo;
             document.getElementById('detailsCategorie').textContent = produit.categorie_nom || 'Sans catégorie';
             document.getElementById('detailsPrix').textContent = new Intl.NumberFormat('fr-MG').format(produit.prix) + ' Ar';
             document.getElementById('detailsProprietaire').textContent = produit.proprietaire;
@@ -168,9 +199,104 @@
             document.getElementById('detailsDescription').textContent = produit.description;
             document.getElementById('contactBtn').href = 'mailto:' + produit.proprietaire_email + '?subject=Proposition d\'échange pour ' + produit.nom;
             
+            // Gérer les photos multiples
+            const carouselInner = document.getElementById('carouselInner');
+            carouselInner.innerHTML = ''; // Vider le carousel
+            
+            if (produit.photos && produit.photos.length > 0) {
+                produit.photos.forEach((photo, index) => {
+                    const carouselItem = document.createElement('div');
+                    carouselItem.className = 'carousel-item' + (index === 0 ? ' active' : '');
+                    
+                    const img = document.createElement('img');
+                    img.src = '/uploads/' + photo.photo;
+                    img.className = 'd-block w-100 img-fluid rounded';
+                    img.alt = produit.nom + ' - Photo ' + (index + 1);
+                    img.onerror = function() {
+                        this.src = 'https://via.placeholder.com/400x300?text=Photo+indisponible';
+                    };
+                    
+                    carouselItem.appendChild(img);
+                    carouselInner.appendChild(carouselItem);
+                });
+                
+                // Afficher les contrôles du carousel seulement s'il y a plusieurs photos
+                const carouselControls = document.querySelectorAll('#photoCarousel .carousel-control-prev, #photoCarousel .carousel-control-next');
+                carouselControls.forEach(control => {
+                    control.style.display = produit.photos.length > 1 ? 'block' : 'none';
+                });
+            } else {
+                // Photo par défaut si aucune photo
+                const carouselItem = document.createElement('div');
+                carouselItem.className = 'carousel-item active';
+                
+                const img = document.createElement('img');
+                img.src = '/uploads/default.jpg';
+                img.className = 'd-block w-100 img-fluid rounded';
+                img.alt = produit.nom;
+                img.onerror = function() {
+                    this.src = 'https://via.placeholder.com/400x300?text=Photo+indisponible';
+                };
+                
+                carouselItem.appendChild(img);
+                carouselInner.appendChild(carouselItem);
+                
+                // Masquer les contrôles du carousel
+                const carouselControls = document.querySelectorAll('#photoCarousel .carousel-control-prev, #photoCarousel .carousel-control-next');
+                carouselControls.forEach(control => {
+                    control.style.display = 'none';
+                });
+            }
+            
             const modal = new bootstrap.Modal(document.getElementById('detailsModal'));
             modal.show();
         }
+
+        // Fonction de recherche
+        function filterProducts() {
+            const searchTerm = document.getElementById('searchInput').value.toLowerCase().trim();
+            const selectedCategory = document.getElementById('categorySelect').value.toLowerCase().trim();
+            const productCards = document.querySelectorAll('.product-card');
+            let visibleCount = 0;
+
+            productCards.forEach(card => {
+                const title = card.dataset.title || '';
+                const category = card.dataset.category || '';
+                
+                const matchesSearch = title.includes(searchTerm);
+                const matchesCategory = selectedCategory === '' || category === selectedCategory;
+                
+                if (matchesSearch && matchesCategory) {
+                    card.style.display = '';
+                    visibleCount++;
+                } else {
+                    card.style.display = 'none';
+                }
+            });
+
+            // Afficher un message si aucun produit ne correspond
+            const noResultsMsg = document.getElementById('noResultsMsg');
+            if (visibleCount === 0 && productCards.length > 0) {
+                if (!noResultsMsg) {
+                    const msg = document.createElement('div');
+                    msg.id = 'noResultsMsg';
+                    msg.className = 'col-12';
+                    msg.innerHTML = '<div class="alert alert-warning text-center"><i class="bi bi-search"></i> Aucun produit ne correspond à votre recherche.</div>';
+                    document.getElementById('productsContainer').appendChild(msg);
+                }
+            } else if (noResultsMsg) {
+                noResultsMsg.remove();
+            }
+        }
+
+        // Événements pour la recherche
+        document.getElementById('searchInput').addEventListener('input', filterProducts);
+        document.getElementById('categorySelect').addEventListener('change', filterProducts);
+        document.getElementById('clearSearch').addEventListener('click', function() {
+            document.getElementById('searchInput').value = '';
+            document.getElementById('categorySelect').value = '';
+            filterProducts();
+        });
     </script>
 </body>
 </html>

@@ -46,11 +46,14 @@ class ProduitController {
     public function catalogue() {
         if (!$this->checkAuth()) return;
         
-        $produits = $this->getProduitModel()->findAllExcept($_SESSION['user_id']);
+        $model = $this->getProduitModel();
+        $produits = $model->findAllExcept($_SESSION['user_id']);
+        $categories = $model->getCategories();
         
         Flight::render('produits/catalogue', [
             'title' => 'Catalogue - E-Takalo',
             'produits' => $produits,
+            'categories' => $categories,
             'user_nom' => $_SESSION['user_nom']
         ]);
     }
@@ -73,24 +76,34 @@ class ProduitController {
             return;
         }
         
-        // Gestion de l'upload de photo
-        $photo = 'default.jpg';
-        if (isset($_FILES['photo']) && $_FILES['photo']['error'] === UPLOAD_ERR_OK) {
+        // Gestion de l'upload de photos
+        $photos = [];
+        if (isset($_FILES['photos'])) {
             $uploadDir = __DIR__ . '/../../public/uploads/';
             if (!file_exists($uploadDir)) {
                 mkdir($uploadDir, 0755, true);
             }
             
-            $extension = pathinfo($_FILES['photo']['name'], PATHINFO_EXTENSION);
-            $photo = uniqid() . '.' . $extension;
-            $uploadFile = $uploadDir . $photo;
-            
-            if (!move_uploaded_file($_FILES['photo']['tmp_name'], $uploadFile)) {
-                $photo = 'default.jpg';
+            // Traiter chaque fichier uploadé
+            foreach ($_FILES['photos']['name'] as $key => $name) {
+                if ($_FILES['photos']['error'][$key] === UPLOAD_ERR_OK) {
+                    $extension = pathinfo($name, PATHINFO_EXTENSION);
+                    $photoName = uniqid() . '_' . $key . '.' . $extension;
+                    $uploadFile = $uploadDir . $photoName;
+                    
+                    if (move_uploaded_file($_FILES['photos']['tmp_name'][$key], $uploadFile)) {
+                        $photos[] = $photoName;
+                    }
+                }
             }
         }
         
-        if ($this->getProduitModel()->create($nom, $description, $prix, $photo, $categorie_id, $_SESSION['user_id'])) {
+        // Si aucune photo n'a été uploadée, utiliser une photo par défaut
+        if (empty($photos)) {
+            $photos[] = 'default.jpg';
+        }
+        
+        if ($this->getProduitModel()->create($nom, $description, $prix, $photos, $categorie_id, $_SESSION['user_id'])) {
             $_SESSION['success'] = 'Objet ajouté avec succès !';
         } else {
             $_SESSION['error'] = 'Erreur lors de l\'ajout de l\'objet';
@@ -126,24 +139,34 @@ class ProduitController {
             return;
         }
         
-        // Gestion de l'upload de photo
-        $photo = null;
-        if (isset($_FILES['photo']) && $_FILES['photo']['error'] === UPLOAD_ERR_OK) {
+        // Gestion de l'upload de photos
+        $photos = [];
+        if (isset($_FILES['photos'])) {
             $uploadDir = __DIR__ . '/../../public/uploads/';
             if (!file_exists($uploadDir)) {
                 mkdir($uploadDir, 0755, true);
             }
             
-            $extension = pathinfo($_FILES['photo']['name'], PATHINFO_EXTENSION);
-            $photo = uniqid() . '.' . $extension;
-            $uploadFile = $uploadDir . $photo;
-            
-            if (!move_uploaded_file($_FILES['photo']['tmp_name'], $uploadFile)) {
-                $photo = null;
+            // Traiter chaque fichier uploadé
+            foreach ($_FILES['photos']['name'] as $key => $name) {
+                if ($_FILES['photos']['error'][$key] === UPLOAD_ERR_OK) {
+                    $extension = pathinfo($name, PATHINFO_EXTENSION);
+                    $photoName = uniqid() . '_' . $key . '.' . $extension;
+                    $uploadFile = $uploadDir . $photoName;
+                    
+                    if (move_uploaded_file($_FILES['photos']['tmp_name'][$key], $uploadFile)) {
+                        $photos[] = $photoName;
+                    }
+                }
             }
         }
         
-        if ($model->update($id, $nom, $description, $prix, $photo, $categorie_id)) {
+        // Si aucune nouvelle photo n'a été uploadée, garder les anciennes photos
+        if (empty($photos)) {
+            $photos = array_column($produit['photos'], 'photo');
+        }
+        
+        if ($model->update($id, $nom, $description, $prix, $photos, $categorie_id)) {
             $_SESSION['success'] = 'Objet modifié avec succès !';
         } else {
             $_SESSION['error'] = 'Erreur lors de la modification';

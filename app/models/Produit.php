@@ -26,11 +26,23 @@ class Produit {
     /**
      * Créer un nouveau produit
      */
-    public function create($nom, $description, $prix, $photo, $categorie_id, $user_id) {
+    public function create($nom, $description, $prix, $photos, $categorie_id, $user_id) {
         $this->db->runQuery(
-            "INSERT INTO produits (nom, description, prix, photo, categorie_id, user_id) VALUES (?, ?, ?, ?, ?, ?)",
-            [$nom, $description, $prix, $photo, $categorie_id, $user_id]
+            "INSERT INTO produits (nom, description, prix, categorie_id, user_id) VALUES (?, ?, ?, ?, ?)",
+            [$nom, $description, $prix, $categorie_id, $user_id]
         );
+        $produit_id = $this->db->lastInsertId();
+        
+        // Ajouter les photos
+        if (!empty($photos)) {
+            foreach ($photos as $index => $photo) {
+                $this->db->runQuery(
+                    "INSERT INTO produit_photos (produit_id, photo, ordre) VALUES (?, ?, ?)",
+                    [$produit_id, $photo, $index]
+                );
+            }
+        }
+        
         return true;
     }
     
@@ -45,7 +57,17 @@ class Produit {
             WHERE p.user_id = ?
             ORDER BY p.id DESC
         ", [$user_id]);
-        return $this->toArray($rows);
+        
+        $produits = $this->toArray($rows);
+        
+        // Ajouter les photos pour chaque produit
+        foreach ($produits as &$produit) {
+            $produit['photos'] = $this->getPhotosByProduitId($produit['id']);
+            // Garder la première photo pour la compatibilité
+            $produit['photo'] = !empty($produit['photos']) ? $produit['photos'][0]['photo'] : 'default.jpg';
+        }
+        
+        return $produits;
     }
     
     /**
@@ -70,38 +92,54 @@ class Produit {
                 ORDER BY p.id DESC
             ");
         }
-        return $this->toArray($rows);
+        
+        $produits = $this->toArray($rows);
+        
+        // Ajouter les photos pour chaque produit
+        foreach ($produits as &$produit) {
+            $produit['photos'] = $this->getPhotosByProduitId($produit['id']);
+            // Garder la première photo pour la compatibilité
+            $produit['photo'] = !empty($produit['photos']) ? $produit['photos'][0]['photo'] : 'default.jpg';
+        }
+        
+        return $produits;
     }
     
     /**
-     * Récupérer un produit par ID
+     * Récupérer les photos d'un produit
      */
-    public function findById($id) {
-        $row = $this->db->fetchRow("
-            SELECT p.*, c.nom as categorie_nom, u.nom as proprietaire, u.email as proprietaire_email 
-            FROM produits p
-            LEFT JOIN categorie c ON p.categorie_id = c.id
-            LEFT JOIN users u ON p.user_id = u.id
-            WHERE p.id = ?
-        ", [$id]);
-        return $this->rowToArray($row);
+    public function getPhotosByProduitId($produit_id) {
+        $rows = $this->db->fetchAll("
+            SELECT * FROM produit_photos 
+            WHERE produit_id = ? 
+            ORDER BY ordre ASC
+        ", [$produit_id]);
+        return $this->toArray($rows);
     }
     
     /**
      * Mettre à jour un produit
      */
-    public function update($id, $nom, $description, $prix, $photo, $categorie_id) {
-        if ($photo) {
-            $this->db->runQuery(
-                "UPDATE produits SET nom = ?, description = ?, prix = ?, photo = ?, categorie_id = ? WHERE id = ?",
-                [$nom, $description, $prix, $photo, $categorie_id, $id]
-            );
-        } else {
-            $this->db->runQuery(
-                "UPDATE produits SET nom = ?, description = ?, prix = ?, categorie_id = ? WHERE id = ?",
-                [$nom, $description, $prix, $categorie_id, $id]
-            );
+    public function update($id, $nom, $description, $prix, $photos, $categorie_id) {
+        // Mettre à jour les informations de base du produit
+        $this->db->runQuery(
+            "UPDATE produits SET nom = ?, description = ?, prix = ?, categorie_id = ? WHERE id = ?",
+            [$nom, $description, $prix, $categorie_id, $id]
+        );
+        
+        // Supprimer les anciennes photos
+        $this->db->runQuery("DELETE FROM produit_photos WHERE produit_id = ?", [$id]);
+        
+        // Ajouter les nouvelles photos
+        if (!empty($photos)) {
+            foreach ($photos as $index => $photo) {
+                $this->db->runQuery(
+                    "INSERT INTO produit_photos (produit_id, photo, ordre) VALUES (?, ?, ?)",
+                    [$id, $photo, $index]
+                );
+            }
         }
+        
         return true;
     }
     

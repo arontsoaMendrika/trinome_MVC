@@ -3,6 +3,7 @@
 use app\controllers\AdminController;
 use app\controllers\ApiExampleController;
 use app\controllers\AuthController;
+use app\controllers\ObjetsController;
 use app\controllers\ProduitController;
 use app\middlewares\SecurityHeadersMiddleware;
 use flight\Engine;
@@ -57,6 +58,9 @@ $router->group('', function(Router $router) use ($app) {
 	$router->post('/produits/modifier', [ ProduitController::class, 'modifier' ]);
 	$router->get('/produits/supprimer/@id:[0-9]+', [ ProduitController::class, 'supprimer' ]);
 
+	// Route pour la liste des objets
+	$router->get('/objets', [ObjetsController::class, 'index']);
+
 	// API Examples (keep for reference)
 	$router->group('/api', function() use ($router) {
 		$router->get('/users', [ ApiExampleController::class, 'getUsers' ]);
@@ -65,3 +69,8 @@ $router->group('', function(Router $router) use ($app) {
 	});
 	
 }, [ SecurityHeadersMiddleware::class ]);
+
+
+
+
+
