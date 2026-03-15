@@ -1,0 +1,23 @@
+# Composer dependencies
+/vendor/
+
+# Configuration files with sensitive data
+/app/config/config.php
+
+# macOS system files
+.DS_Store
+**/.DS_Store
+
+# Editor directories and files
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# PHP environment files
+.env
+.env.local
+
+# Uploaded files (keep directory with .gitkeep)
+/public/uploads/*
+!/public/uploads/.gitkeep

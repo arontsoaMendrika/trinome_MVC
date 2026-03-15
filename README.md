@@ -108,3 +108,94 @@ project-root/
 
 ## Do it!
 That's it! Go build something flipping sweet!
+
+---
+
+## Troubleshooting VS Code & GitHub Copilot Chat (macOS)
+
+### Erreur "End of central directory record signature not found"
+
+Si vous voyez cette erreur dans les logs de VS Code, cela signifie qu'un fichier d'extension téléchargé (`.vsix`, qui est un fichier ZIP) est **corrompu ou incomplet**. Cela empêche notamment l'installation de **GitHub Copilot Chat**.
+
+#### Étape 1 — Quitter VS Code complètement
+
+Appuyez sur **Cmd+Q** ou, dans le Terminal :
+
+```bash
+pkill -f "Visual Studio Code" || true
+```
+
+#### Étape 2 — Supprimer les caches d'extensions corrompus
+
+Ouvrez le Terminal et exécutez les commandes suivantes :
+
+```bash
+# Supprimer le cache des VSIX téléchargés
+rm -rf "$HOME/Library/Application Support/Code/CachedExtensionVSIXs"
+
+# Supprimer le cache des extensions installées
+rm -rf "$HOME/Library/Application Support/Code/CachedExtensions"
+
+# Supprimer le cache des profils
+rm -rf "$HOME/Library/Application Support/Code/CachedProfilesData"
+```
+
+#### Étape 3 — Supprimer les caches réseau et de données (si l'erreur persiste)
+
+```bash
+cd "$HOME/Library/Application Support/Code"
+
+rm -rf "Cache" "Code Cache" "GPUCache" "Network Persistent State" \
+       "Service Worker" "Shared Dictionary" "SharedStorage" \
+       "WebStorage" "blob_storage"
+
+rm -f "languagepacks.json"
+```
+
+> Ces dossiers sont **recréés automatiquement** au prochain démarrage de VS Code.
+
+#### Étape 4 — Relancer VS Code et installer GitHub Copilot Chat
+
+1. Relancez VS Code.
+2. Ouvrez l'onglet **Extensions** (Cmd+Shift+X).
+3. Recherchez **GitHub Copilot Chat** et cliquez sur **Installer**.
+
+#### Étape 5 — Si l'erreur persiste : réinstaller VS Code
+
+Si les étapes précédentes ne règlent pas le problème, réinstallez VS Code proprement :
+
+```bash
+# 1. Supprimer VS Code
+sudo rm -rf "/Applications/Visual Studio Code.app"
+
+# 2. Supprimer les données utilisateur (ATTENTION : supprime aussi vos paramètres/extensions)
+rm -rf "$HOME/Library/Application Support/Code"
+rm -rf "$HOME/.vscode"
+```
+
+Puis re-téléchargez VS Code depuis [https://code.visualstudio.com/](https://code.visualstudio.com/) et réinstallez GitHub Copilot Chat via le marketplace des extensions.
+
+#### Vérifier un fichier `.vsix` manuellement
+
+Pour tester si un fichier `.vsix` téléchargé est valide :
+
+```bash
+# Remplacez le chemin par celui de votre fichier (p. ex. dans ~/Downloads ou dans le dossier CachedExtensionVSIXs)
+unzip -t "$HOME/Downloads/extension.vsix"
+
+# Ou pour inspecter les VSIX présents dans le cache VS Code :
+ls "$HOME/Library/Application Support/Code/CachedExtensionVSIXs"
+```
+
+Si la commande retourne une erreur, le fichier est corrompu — supprimez-le et re-téléchargez l'extension depuis le marketplace VS Code.
+
+#### Désactiver toutes les extensions pour diagnostiquer
+
+Si vous n'êtes pas sûr quelle extension cause le problème, lancez VS Code sans extensions :
+
+```bash
+code --disable-extensions
+```
+
+- Si l'erreur disparaît → une extension (ou un language pack) est en cause.
+- Si l'erreur reste → c'est un problème de cache interne ou d'installation de VS Code.
